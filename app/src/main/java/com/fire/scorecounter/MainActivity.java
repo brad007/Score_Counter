@@ -5,13 +5,24 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.TextView;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.MutableData;
+import com.google.firebase.database.Transaction;
+import com.google.firebase.database.ValueEventListener;
+
 public class MainActivity extends AppCompatActivity
         implements View.OnClickListener {
 
-    private int mCounter_A;
-    private int mCounter_B;
     private TextView mScoreTextView_A;
     private TextView mScoreTextView_B;
+
+    private DatabaseReference teamARef;
+    private DatabaseReference teamBRef;
+    private long mCounter_A;
+    private long mCounter_B;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,16 +45,86 @@ public class MainActivity extends AppCompatActivity
 
         mScoreTextView_A = (TextView) findViewById(R.id.score_A);
         mScoreTextView_B = (TextView) findViewById(R.id.score_B);
+
+        teamARef = FirebaseDatabase.getInstance().getReference("teamA");
+        teamBRef = FirebaseDatabase.getInstance().getReference("teamB");
+
+        teamARef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.getValue() != null) {
+                    mCounter_A = (long) dataSnapshot.getValue();
+                    mScoreTextView_A.setText(mCounter_A + "");
+                } else {
+                    mScoreTextView_A.setText("0");
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+        teamBRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.getValue() != null) {
+                    mCounter_B = (long) dataSnapshot.getValue();
+                    mScoreTextView_B.setText(mCounter_B + "");
+                }else{
+                    mScoreTextView_B.setText("0");
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+        //SingleValueEventListener
+        //ValueEventListener
+
     }
 
-    private void addScore_A(int score) {
-        mCounter_A += score;
-        mScoreTextView_A.setText(mCounter_A + "");
+    private void addScore_A(long score) {
+        for (int i = 0; i < score; i++) {
+            teamARef.runTransaction(new Transaction.Handler() {
+                @Override
+                public Transaction.Result doTransaction(MutableData mutableData) {
+                    if (mutableData.getValue() != null) {
+                        long num = (long) mutableData.getValue();
+                        mutableData.setValue(num + 1);
+                        return Transaction.success(mutableData);
+                    } else {
+                        teamARef.setValue(1);
+                        return Transaction.success(mutableData);
+                    }
+                }
+
+                @Override
+                public void onComplete(DatabaseError databaseError, boolean b, DataSnapshot dataSnapshot) {
+
+                }
+            });
+        }
     }
 
-    private void addScore_B(int score) {
-        mCounter_B += score;
-        mScoreTextView_B.setText(mCounter_B + "");
+    private void addScore_B(final long score) {
+        teamBRef.runTransaction(new Transaction.Handler() {
+            @Override
+            public Transaction.Result doTransaction(MutableData mutableData) {
+                long num = (long) mutableData.getValue();
+                mutableData.setValue(num + score);
+                return Transaction.success(mutableData);
+            }
+
+            @Override
+            public void onComplete(DatabaseError databaseError, boolean b, DataSnapshot dataSnapshot) {
+
+            }
+        });
     }
 
     private void clearAll() {
